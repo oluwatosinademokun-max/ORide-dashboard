@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>O'Ride — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --navy:#1A3A5C;--blue:#2E6DA4;--blue-l:#D6E4F0;
+  --teal:#0F6E56;--teal-l:#E1F5EE;--green:#1D9E75;
+  --amber:#854F0B;--amber-l:#FEF3DC;
+  --red:#791F1F;--red-l:#FCEBEB;
+  --med-l:#FFF3CD;--med-d:#7D5A00;
+  --orange:#993C1D;--orange-l:#FAECE7;
+  --bg:#F2F0EA;--surface:#FFFFFF;--surface2:#EFEDE7;
+  --border:rgba(0,0,0,0.08);--text:#1A1A1A;--t2:#5A5A5A;--t3:#999;
+  --r:10px;--rl:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:210px;background:var(--navy);display:flex;flex-direction:column;z-index:100;overflow-y:auto;}
+.logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.logo-name{font-size:18px;font-weight:600;color:#fff;}
+.logo-sub{font-size:9px;color:rgba(255,255,255,0.38);text-transform:uppercase;letter-spacing:0.12em;margin-top:2px;}
+.nav-sec{padding:12px 12px 3px;font-size:9px;color:rgba(255,255,255,0.26);text-transform:uppercase;letter-spacing:0.12em;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:12px;color:rgba(255,255,255,0.58);cursor:pointer;border-left:3px solid transparent;transition:all 0.12s;user-select:none;}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,0.05);}
+.nav-item.active{color:#fff;background:rgba(255,255,255,0.1);border-left-color:#4EA8DE;}
+.ni{width:14px;height:14px;opacity:0.6;flex-shrink:0;}
+.nav-item.active .ni{opacity:1;}
+.sf{margin-top:auto;padding:12px 18px;border-top:1px solid rgba(255,255,255,0.08);font-size:10px;color:rgba(255,255,255,0.28);line-height:1.5;}
+.main{margin-left:210px;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50;}
+.tb-left{display:flex;align-items:center;gap:10px;}
+.tb-title{font-size:13.5px;font-weight:500;}
+.tb-saved{font-size:11px;color:var(--teal);display:none;}
+.tb-right{display:flex;align-items:center;gap:8px;}
+.btn-export{font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--navy);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-export:hover{background:#2E6DA4;}
+.btn-sm{font-size:11px;padding:5px 12px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--t2);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-sm:hover{background:var(--surface2);}
+.content{padding:22px 28px;}
+.panel{display:none;}
+.panel.active{display:block;animation:fi 0.15s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.sec{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:var(--t2);margin:0 0 10px;}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
+.kcard{background:var(--surface);border-radius:var(--r);padding:13px 15px;border:1px solid var(--border);}
+.kl{font-size:10px;color:var(--t2);margin-bottom:4px;}
+.kv{font-size:22px;font-weight:500;line-height:1;}
+.ks{font-size:10px;color:var(--t3);margin-top:3px;}
+.card{background:var(--surface);border-radius:var(--rl);border:1px solid var(--border);padding:16px 18px;margin-bottom:12px;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.s4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px;}
+.sl{font-size:10px;color:var(--t2);margin-bottom:2px;}
+.sv{font-size:12px;font-weight:500;}
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:6px;}
+.bh{background:var(--red-l);color:var(--red);}
+.bm{background:var(--med-l);color:var(--med-d);}
+.bl{background:var(--teal-l);color:var(--teal);}
+.ba{background:var(--amber-l);color:var(--amber);}
+.pb{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:7px;}
+.pf{height:100%;border-radius:3px;transition:width 0.4s;}
+.pt{display:flex;justify-content:space-between;font-size:10px;color:var(--t2);margin-bottom:3px;}
+/* editable fields */
+.ef{border:none;border-bottom:1.5px solid transparent;background:transparent;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--text);padding:2px 4px;border-radius:3px;width:100%;transition:border-color 0.15s;}
+.ef:focus{outline:none;border-bottom-color:#2E6DA4;background:rgba(46,109,164,0.06);}
+.ef:hover{border-bottom-color:var(--border);}
+.ef-num{font-family:'DM Mono',monospace;font-size:11px;}
+select.ef{cursor:pointer;}
+table{width:100%;border-collapse:collapse;font-size:11.5px;}
+th{background:var(--surface2);font-weight:500;font-size:10px;color:var(--t2);padding:7px 10px;text-align:center;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.04em;}
+td{padding:6px 10px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04);}
+td.tl{text-align:left;font-family:'DM Sans',sans-serif;}
+.stbl{max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:10px 18px;border-radius:var(--r);font-size:12px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;}
+.toast.show{opacity:1;}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:200;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--rl);padding:24px;width:420px;max-width:95vw;}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:14px;}
+.modal label{font-size:11px;color:var(--t2);display:block;margin-bottom:3px;margin-top:10px;}
+.modal input,.modal select,.modal textarea{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface2);}
+.modal textarea{resize:vertical;min-height:60px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.btn-primary{background:var(--navy);color:#fff;border:none;padding:7px 16px;border-radius:var(--r);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.btn-cancel{background:transparent;color:var(--t2);border:1px solid var(--border);padding:7px 16px;border-radius:var(--r);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.add-row{font-size:11px;color:var(--blue);cursor:pointer;padding:6px 10px;display:inline-block;}
+.add-row:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo"><div class="logo-name">O'Ride</div><div class="logo-sub">Hire Purchase · Nigeria</div></div>
+  <div class="nav-sec">Overview</div>
+  <div class="nav-item active" onclick="showPanel('portfolio',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>Portfolio
+  </div>
+  <div class="nav-item" onclick="showPanel('payments',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><line x1="1" y1="7" x2="15" y2="7"/></svg>Payment tracker
+  </div>
+  <div class="nav-sec">Riders</div>
+  <div class="nav-item" onclick="showPanel('riders',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Rider details
+  </div>
+  <div class="nav-item" onclick="showPanel('risk',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1L15 14H1L8 1z"/><line x1="8" y1="6" x2="8" y2="9"/><circle cx="8" cy="11.5" r="0.75" fill="currentColor"/></svg>Risk register
+  </div>
+  <div class="nav-item" onclick="showPanel('docs',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="1" width="10" height="14" rx="1"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/></svg>Documentation
+  </div>
+  <div class="nav-item" onclick="showPanel('profit',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="7"/><polyline points="5,11 8,5 11,11"/></svg>Profit split
+  </div>
+  <div class="nav-item" onclick="showPanel('expenses',this)">
+    <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="8" x2="14" y2="8"/><line x1="8" y1="2" x2="8" y2="14"/></svg>Expenses
+  </div>
+  <div class="sf">All edits save locally.<br>Use Export to download CSV.</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="tb-title" id="tt">Portfolio</span>
+      <span class="tb-saved" id="saved-msg">Saved</span>
+    </div>
+    <div class="tb-right">
+      <button class="btn-sm" onclick="addRider()">+ Add rider</button>
+      <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- PORTFOLIO -->
+    <div class="panel active" id="panel-portfolio">
+      <div class="kgrid" id="port-kpis"></div>
+      <div class="two">
+        <div>
+          <p class="sec">Capital vs expected profit</p>
+          <div class="card" style="padding:14px;">
+            <div style="display:flex;gap:12px;font-size:10px;color:var(--t2);margin-bottom:8px;" id="port-leg"></div>
+            <div style="position:relative;height:200px;"><canvas id="portChart"></canvas></div>
+          </div>
+        </div>
+        <div>
+          <p class="sec">Collection progress</p>
+          <div id="portProgress"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT TRACKER -->
+    <div class="panel" id="panel-payments">
+      <div class="kgrid" id="pay-kpis"></div>
+      <p class="sec">Weekly payment log — click any field to edit</p>
+      <div id="payCards"></div>
+    </div>
+
+    <!-- RIDER DETAILS -->
+    <div class="panel" id="panel-riders">
+      <p class="sec">Rider profiles — click any field to edit</p>
+      <div id="riderCards"></div>
+    </div>
+
+    <!-- RISK REGISTER -->
+    <div class="panel" id="panel-risk">
+      <div class="kgrid" id="risk-kpis"></div>
+      <p class="sec">Risk register — click any field to edit</p>
+      <div id="riskCards"></div>
+    </div>
+
+    <!-- DOCUMENTATION -->
+    <div class="panel" id="panel-docs">
+      <p class="sec">Document checklist — click to toggle</p>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table id="docsTable">
+          <thead><tr>
+            <th style="text-align:left;">Rider</th>
+            <th>Signed agreement</th><th>Rider ID / NIN</th><th>Guarantor ID</th>
+            <th>Reg. document</th><th>Insurance</th><th>Affidavit</th><th>Missing</th>
+          </tr></thead>
+          <tbody id="docsBody"></tbody>
+        </table>
+      </div>
+      <p class="sec" style="margin-top:14px;">Document expiry tracker</p>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table>
+          <thead><tr><th style="text-align:left;">Rider</th><th style="text-align:left;">Document</th><th>Expiry</th><th>Authority</th><th>Status</th></tr></thead>
+          <tbody id="expiryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROFIT SPLIT -->
+    <div class="panel" id="panel-profit">
+      <div class="kgrid" id="profit-kpis"></div>
+      <div class="two">
+        <div>
+          <p class="sec">Profit distribution</p>
+          <div class="card" style="padding:14px;"><div style="position:relative;height:220px;"><canvas id="splitChart"></canvas></div></div>
+        </div>
+        <div>
+          <p class="sec">Partner allocations</p>
+          <div class="card" style="padding:0;overflow:hidden;">
+            <table><thead><tr><th style="text-align:left;">Partner</th><th>%</th><th>Amount</th></tr></thead>
+            <tbody id="splitBody"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="panel" id="panel-expenses">
+      <div class="kgrid" id="exp-kpis"></div>
+      <p class="sec">Expense log — click any field to edit</p>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table>
+          <thead><tr><th style="text-align:left;">Rider</th><th style="text-align:left;">Item</th><th>Amount (₦)</th><th>Date</th><th>Status</th><th></th></tr></thead>
+          <tbody id="expBody"></tbody>
+        </table>
+      </div>
+      <span class="add-row" onclick="addExpense()">+ Add expense</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADD RIDER MODAL -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <h3>Add new rider</h3>
+    <label>Rider ID (e.g. O'Ride-006)</label><input id="m-id" placeholder="O'Ride-006"/>
+    <label>Full name</label><input id="m-name" placeholder="Surname Firstname"/>
+    <label>Asset type</label>
+    <select id="m-type"><option>Bike</option><option>Tricycle</option></select>
+    <label>Capital deployed (₦)</label><input id="m-cap" type="number" placeholder="4000000"/>
+    <label>Weekly payment (₦)</label><input id="m-weekly" type="number" placeholder="40000"/>
+    <label>Duration (months)</label><input id="m-months" type="number" placeholder="25"/>
+    <label>Total repayment (₦)</label><input id="m-total" type="number" placeholder="6000000"/>
+    <label>Deposit paid (₦)</label><input id="m-dep" type="number" placeholder="300000"/>
+    <label>Risk level</label>
+    <select id="m-risk"><option>High</option><option>Medium</option><option>Low</option></select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmAddRider()">Add rider</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PLANS_KEY='oride_plans_v3';
+const EXP_KEY='oride_expenses_v3';
+
+const defaultPlans=[
+  {id:"O'Ride-001",name:"Om D.",type:"Bike",    cap:1526000,roi:574000, total:2100000,weeks:78, months:16,weekly:30000,dep:50000, collected:1230000,wkPaid:41, risk:"High",  riskFactors:"New rider. Late payments throughout.",  mit:"Weekly monitoring",  review:"05/02/2026",status:"Under Monitoring",
+   signed:true,nin:false,gid:false,reg:true,ins:true,aff:false,
+   regExp:"17/06/2026",insExp:"16/06/2026",auth:"FRSC/VIO",startDate:"28/06/2025",endDate:"28/12/2026",note:"Late payer — weekly"},
+  {id:"O'Ride-002",name:"Edoja V.",type:"Bike", cap:1471000,roi:629000, total:2100000,weeks:78, months:18,weekly:30000,dep:50000, collected:860000, wkPaid:27, risk:"High",  riskFactors:"Family issues. Missed/short payments.",     mit:"Weekly monitoring",  review:"05/02/2026",status:"Under Monitoring",
+   signed:true,nin:true, gid:false,reg:true,ins:true,aff:false,
+   regExp:"11/09/2026",insExp:"12/09/2026",auth:"FRSC/VIO",startDate:"13/09/2025",endDate:"13/03/2027",note:"Mother burial week 27-28"},
+  {id:"O'Ride-003",name:"Oguni B.",type:"Tricycle",cap:4070000,roi:1930000,total:6000000,weeks:150,months:38,weekly:40000,dep:500000,collected:960000, wkPaid:24, risk:"High",  riskFactors:"38-month duration. Long capital recovery.",mit:"500K deposit",       review:"05/02/2026",status:"Under Monitoring",
+   signed:true,nin:true, gid:true, reg:true,ins:true,aff:false,
+   regExp:"28/10/2026",insExp:"29/10/2026",auth:"VIO/FRSC",startDate:"01/11/2025",endDate:"25/07/2028",note:"Paying on time"},
+  {id:"O'Ride-004",name:"Aka A.",type:"Tricycle",  cap:4077000,roi:1923000,total:6000000,weeks:100,months:25,weekly:60000,dep:300000,collected:820000, wkPaid:109,risk:"Medium",riskFactors:"Standard daily. Low deposit ratio.",         mit:"Weekly monitoring",  review:"05/02/2026",status:"Under Monitoring",
+   signed:true,nin:true, gid:true, reg:true,ins:true,aff:true,
+   regExp:"24/11/2026",insExp:"27/11/2026",auth:"VIO/FRSC",startDate:"17/11/2025",endDate:"17/12/2027",note:"Daily payer ₦10k"},
+  {id:"O'Ride-005",name:"Ayom Ja.",type:"Tricycle",cap:4045000,roi:2055000,total:6100000,weeks:122,months:31,weekly:50000,dep:500000,collected:450000, wkPaid:9,  risk:"Medium",riskFactors:"31-month term. Extended repayment.",         mit:"500K deposit",       review:"20/02/2026",status:"Under Monitoring",
+   signed:true,nin:true, gid:true, reg:true,ins:true,aff:true,
+   regExp:"23/09/2027",insExp:"26/01/2027",auth:"VIO/FRSC",startDate:"14/02/2026",endDate:"28/08/2028",note:"Started Feb 2026"},
+];
+
+const defaultExpenses=[
+  {rider:"O'Ride-001",item:"Bike",         amount:1300000,date:"13/06/2025",done:true},
+  {rider:"O'Ride-001",item:"CAC",          amount:20000,  date:"27/05/2025",done:true},
+  {rider:"O'Ride-001",item:"Lawyer",       amount:65000,  date:"14/06/2025",done:true},
+  {rider:"O'Ride-001",item:"Tracking",     amount:55000,  date:"14/06/2025",done:true},
+  {rider:"O'Ride-001",item:"Plate & docs", amount:55000,  date:"18/06/2025",done:true},
+  {rider:"O'Ride-001",item:"Fuel",         amount:12000,  date:"13/06/2025",done:true},
+  {rider:"O'Ride-001",item:"Photocopy",    amount:9000,   date:"18/06/2025",done:true},
+  {rider:"O'Ride-002",item:"Bike",         amount:1300000,date:"13/08/2025",done:true},
+  {rider:"O'Ride-002",item:"Tracking",     amount:55000,  date:"",          done:true},
+  {rider:"O'Ride-002",item:"Plate & docs", amount:85000,  date:"",          done:true},
+  {rider:"O'Ride-003",item:"Tricycle",     amount:3950000,date:"23/10/2025",done:true},
+  {rider:"O'Ride-003",item:"Agent",        amount:30000,  date:"",          done:true},
+  {rider:"O'Ride-003",item:"Stamp",        amount:10000,  date:"",          done:true},
+  {rider:"O'Ride-004",item:"Tricycle",     amount:3950000,date:"15/11/2025",done:true},
+  {rider:"O'Ride-004",item:"Brake oil",    amount:30000,  date:"",          done:true},
+  {rider:"O'Ride-004",item:"Plate & docs", amount:65000,  date:"",          done:true},
+  {rider:"O'Ride-005",item:"Tricycle",     amount:3930000,date:"05/02/2026",done:true},
+  {rider:"O'Ride-005",item:"Agent",        amount:30000,  date:"05/02/2026",done:true},
+  {rider:"O'Ride-005",item:"Plate & docs", amount:50000,  date:"05/02/2026",done:true},
+];
+
+let plans=JSON.parse(localStorage.getItem(PLANS_KEY)||'null')||defaultPlans;
+let expenses=JSON.parse(localStorage.getItem(EXP_KEY)||'null')||defaultExpenses;
+
+const save=()=>{
+  localStorage.setItem(PLANS_KEY,JSON.stringify(plans));
+  localStorage.setItem(EXP_KEY,JSON.stringify(expenses));
+  showToast('Saved');
+  render();
+};
+
+const fmt=n=>'₦'+Math.round(n||0).toLocaleString('en-NG');
+const rCol={High:{bg:'var(--red-l)',fg:'var(--red)',a:'#E24B4A'},Medium:{bg:'var(--med-l)',fg:'var(--med-d)',a:'#EF9F27'},Low:{bg:'var(--teal-l)',fg:'var(--teal)',a:'#1D9E75'}};
+const planColors=["#2E6DA4","#0F6E56","#534AB7","#C87A17","#1D7A4E","#D85A30","#888780","#D4537E"];
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+function ef(val,key,idx,cls='',type='text'){
+  return `<input class="ef ${cls}" type="${type}" value="${String(val||'').replace(/"/g,'&quot;')}" onchange="plans[${idx}]['${key}']=this.${type==='number'?'valueAsNumber':'value'};save();" />`;
+}
+function efExp(val,key,idx,cls='',type='text'){
+  return `<input class="ef ${cls}" type="${type}" value="${String(val||'').replace(/"/g,'&quot;')}" onchange="expenses[${idx}]['${key}']=this.${type==='number'?'valueAsNumber':'value'};save();" />`;
+}
+function selRisk(val,idx){
+  return `<select class="ef" onchange="plans[${idx}].risk=this.value;save();">
+    <option ${val==='High'?'selected':''}>High</option>
+    <option ${val==='Medium'?'selected':''}>Medium</option>
+    <option ${val==='Low'?'selected':''}>Low</option>
+  </select>`;
+}
+function selStatus(val,idx){
+  return `<select class="ef" onchange="plans[${idx}].status=this.value;save();">
+    <option ${val==='Under Monitoring'?'selected':''}>Under Monitoring</option>
+    <option ${val==='Resolved'?'selected':''}>Resolved</option>
+    <option ${val==='Escalated'?'selected':''}>Escalated</option>
+    <option ${val==='Closed'?'selected':''}>Closed</option>
+  </select>`;
+}
+function chkBtn(v,field,idx){
+  const bg=v?'#D5EFE2':'#FCEBEB',fg=v?'#0F6E56':'#791F1F',lbl=v?'Yes':'No';
+  return `<span onclick="plans[${idx}]['${field}']=!plans[${idx}]['${field}'];save();" style="cursor:pointer;background:${bg};color:${fg};padding:2px 8px;border-radius:5px;font-size:10px;font-weight:500;">${lbl}</span>`;
+}
+
+let portChart=null, splitChart=null;
+
+function render(){
+  const totalCap=plans.reduce((a,p)=>a+p.cap,0);
+  const totalROI=plans.reduce((a,p)=>a+p.roi,0);
+  const totalCol=plans.reduce((a,p)=>a+p.collected,0);
+  const totalDep=plans.reduce((a,p)=>a+p.dep,0);
+
+  // PORTFOLIO KPIs
+  document.getElementById('port-kpis').innerHTML=`
+    <div class="kcard"><div class="kl">Total capital</div><div class="kv" style="font-size:17px;">${fmt(totalCap)}</div><div class="ks">${plans.length} plans</div></div>
+    <div class="kcard"><div class="kl">Total expected ROI</div><div class="kv" style="color:var(--teal);font-size:17px;">${fmt(totalROI)}</div></div>
+    <div class="kcard"><div class="kl">Collected to date</div><div class="kv" style="font-size:17px;">${fmt(totalCol)}</div><div class="ks">${((totalCol/plans.reduce((a,p)=>a+p.total,0))*100).toFixed(1)}% of total</div></div>
+    <div class="kcard"><div class="kl">Total deposits</div><div class="kv" style="font-size:17px;">${fmt(totalDep)}</div></div>`;
+
+  const leg=document.getElementById('port-leg');
+  leg.innerHTML=`<span style="font-size:10px;color:var(--t2);display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:#2E6DA4;display:inline-block;"></span>Capital</span>
+  <span style="font-size:10px;color:var(--t2);display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:#1D9E75;display:inline-block;"></span>Profit</span>`;
+
+  if(portChart) portChart.destroy();
+  portChart=new Chart(document.getElementById('portChart'),{
+    type:'bar',
+    data:{labels:plans.map(p=>p.id),datasets:[
+      {label:'Capital',data:plans.map(p=>p.cap),backgroundColor:'#2E6DA4',borderRadius:4},
+      {label:'Profit', data:plans.map(p=>p.roi),backgroundColor:'#1D9E75',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:9}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:9},callback:v=>'₦'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'k')}}}}
+  });
+
+  const pp=document.getElementById('portProgress');
+  pp.innerHTML=plans.map((p,i)=>{
+    const c=Math.min(1,p.collected/p.total);
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:11px 14px;margin-bottom:8px;border-left:3px solid ${planColors[i]};">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:12px;font-weight:500;">${p.id} · ${p.name}</span>
+        <span style="font-size:11px;color:var(--teal);font-family:'DM Mono',monospace;">${fmt(p.collected)}</span>
+      </div>
+      <div class="pt"><span>${(c*100).toFixed(1)}% collected</span><span style="color:var(--t3);">${fmt(p.total)} total</span></div>
+      <div class="pb"><div class="pf" style="width:${Math.round(c*100)}%;background:${planColors[i]};"></div></div>
+    </div>`;
+  }).join('');
+
+  // PAYMENT TRACKER
+  const payKpis=document.getElementById('pay-kpis');
+  const outstanding=plans.reduce((a,p)=>a+Math.max(0,p.total-p.collected),0);
+  payKpis.innerHTML=`
+    <div class="kcard"><div class="kl">Total collected</div><div class="kv" style="color:var(--teal);font-size:17px;">${fmt(totalCol)}</div></div>
+    <div class="kcard"><div class="kl">Outstanding</div><div class="kv" style="color:var(--red);font-size:17px;">${fmt(outstanding)}</div></div>
+    <div class="kcard"><div class="kl">Avg completion</div><div class="kv" style="font-size:17px;">${((totalCol/plans.reduce((a,p)=>a+p.total,0))*100).toFixed(1)}%</div></div>`;
+
+  document.getElementById('payCards').innerHTML=plans.map((p,i)=>{
+    const c=Math.min(1,p.collected/p.total);
+    return `<div class="card" style="border-left:3px solid ${planColors[i]};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div><div style="font-size:13px;font-weight:500;">${p.id} — ${p.name}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px;">${p.type} · ${p.months}-month plan</div></div>
+        ${selStatus(p.status,i)}
+      </div>
+      <div class="s4">
+        <div><div class="sl">Collected (₦)</div>${ef(p.collected,'collected',i,'ef-num','number')}</div>
+        <div><div class="sl">Outstanding</div><div class="sv" style="color:var(--red);font-size:11px;font-family:'DM Mono',monospace;">${fmt(Math.max(0,p.total-p.collected))}</div></div>
+        <div><div class="sl">${i===3?'Days':'Weeks'} paid</div>${ef(p.wkPaid,'wkPaid',i,'ef-num','number')}</div>
+        <div><div class="sl">Total / max</div><div class="sv" style="font-size:11px;color:var(--t2);">${p.wkPaid} / ${i===3?p.weeks*7:p.weeks}</div></div>
+      </div>
+      <div><div class="sl" style="margin-bottom:4px;">Notes</div>${ef(p.note,'note',i)}</div>
+      <div class="pt" style="margin-top:8px;"><span>${(c*100).toFixed(1)}% complete</span><span style="color:var(--t3);">${fmt(p.total)}</span></div>
+      <div class="pb"><div class="pf" style="width:${Math.round(c*100)}%;background:${planColors[i]};"></div></div>
+    </div>`;
+  }).join('');
+
+  // RIDER DETAILS
+  document.getElementById('riderCards').innerHTML=plans.map((p,i)=>`
+    <div class="card" style="border-left:3px solid ${planColors[i]};margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:500;">${p.id}</span>
+        <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:5px;background:${rCol[p.risk]?.bg||'#eee'};color:${rCol[p.risk]?.fg||'#333'};">${p.risk} risk</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+        <div><div class="sl">Full name</div>${ef(p.name,'name',i)}</div>
+        <div><div class="sl">Asset type</div>${ef(p.type,'type',i)}</div>
+        <div><div class="sl">Start date</div>${ef(p.startDate,'startDate',i)}</div>
+        <div><div class="sl">Capital (₦)</div>${ef(p.cap,'cap',i,'ef-num','number')}</div>
+        <div><div class="sl">Weekly (₦)</div>${ef(p.weekly,'weekly',i,'ef-num','number')}</div>
+        <div><div class="sl">Deposit (₦)</div>${ef(p.dep,'dep',i,'ef-num','number')}</div>
+        <div><div class="sl">Duration (months)</div>${ef(p.months,'months',i,'ef-num','number')}</div>
+        <div><div class="sl">Total repayment (₦)</div>${ef(p.total,'total',i,'ef-num','number')}</div>
+        <div><div class="sl">End date</div>${ef(p.endDate,'endDate',i)}</div>
+      </div>
+    </div>`).join('');
+
+  // RISK REGISTER
+  const riskKpis=document.getElementById('risk-kpis');
+  const hi=plans.filter(p=>p.risk==='High').length;
+  const mi=plans.filter(p=>p.risk==='Medium').length;
+  const lo=plans.filter(p=>p.risk==='Low').length;
+  riskKpis.innerHTML=`
+    <div class="kcard"><div class="kl">Riders</div><div class="kv">${plans.length}</div></div>
+    <div class="kcard" style="background:var(--red-l);border-color:#F09595;"><div class="kl" style="color:var(--red);">High risk</div><div class="kv" style="color:var(--red);">${hi}</div></div>
+    <div class="kcard" style="background:var(--med-l);border-color:#EF9F27;"><div class="kl" style="color:var(--med-d);">Medium risk</div><div class="kv" style="color:var(--med-d);">${mi}</div></div>
+    <div class="kcard" style="background:var(--teal-l);border-color:#5DCAA5;"><div class="kl" style="color:var(--teal);">Low risk</div><div class="kv" style="color:var(--teal);">${lo}</div></div>
+    <div class="kcard"><div class="kl">Total deposits</div><div class="kv" style="font-size:16px;">${fmt(totalDep)}</div></div>`;
+
+  document.getElementById('riskCards').innerHTML=plans.map((p,i)=>`
+    <div class="card" style="border-left:3px solid ${rCol[p.risk]?.a||'#888'};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div><div style="font-size:13px;font-weight:500;">${p.name} — ${p.id}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px;">Deposit: ${fmt(p.dep)} · Review: ${p.review}</div></div>
+        ${selRisk(p.risk,i)}
+      </div>
+      <div class="s4">
+        <div><div class="sl">Risk factors</div>${ef(p.riskFactors,'riskFactors',i)}</div>
+        <div><div class="sl">Mitigation</div>${ef(p.mit,'mit',i)}</div>
+        <div><div class="sl">Review date</div>${ef(p.review,'review',i)}</div>
+        <div><div class="sl">Status</div>${selStatus(p.status,i)}</div>
+      </div>
+    </div>`).join('');
+
+  // DOCUMENTATION
+  document.getElementById('docsBody').innerHTML=plans.map((p,i)=>{
+    const missing=[];
+    if(!p.nin) missing.push('NIN');
+    if(!p.gid) missing.push('Guarantor ID');
+    if(!p.aff) missing.push('Affidavit');
+    return `<tr>
+      <td class="tl">${p.id}</td>
+      <td style="text-align:center;">${chkBtn(p.signed,'signed',i)}</td>
+      <td style="text-align:center;">${chkBtn(p.nin,'nin',i)}</td>
+      <td style="text-align:center;">${chkBtn(p.gid,'gid',i)}</td>
+      <td style="text-align:center;">${chkBtn(p.reg,'reg',i)}</td>
+      <td style="text-align:center;">${chkBtn(p.ins,'ins',i)}</td>
+      <td style="text-align:center;">${chkBtn(p.aff,'aff',i)}</td>
+      <td class="tl" style="font-size:10px;color:var(--red);">${missing.join(', ')||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('expiryBody').innerHTML=plans.map((p,i)=>`
+    <tr>
+      <td class="tl">${p.id}</td>
+      <td class="tl">${p.type} registration</td>
+      <td><input class="ef ef-num" value="${p.regExp||''}" style="width:100px;" onchange="plans[${i}].regExp=this.value;save();"/></td>
+      <td class="tl">${p.auth}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:5px;background:var(--amber-l);color:var(--amber);">Pending renewal</span></td>
+    </tr>
+    <tr>
+      <td class="tl">${p.id}</td>
+      <td class="tl">Insurance</td>
+      <td><input class="ef ef-num" value="${p.insExp||''}" style="width:100px;" onchange="plans[${i}].insExp=this.value;save();"/></td>
+      <td class="tl">${p.auth}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:5px;background:var(--amber-l);color:var(--amber);">Pending renewal</span></td>
+    </tr>`).join('');
+
+  // PROFIT SPLIT
+  const partners=[
+    {name:'Savings',pct:0.65},{name:'Suzzy',pct:0.05},{name:'Tosin',pct:0.05},
+    {name:'Dad',pct:0.05},{name:'Oluwayomi',pct:0.05},{name:'Oyin',pct:0.05},{name:'Maintenance',pct:0.10}
+  ];
+  document.getElementById('profit-kpis').innerHTML=`
+    <div class="kcard"><div class="kl">Total expected profit</div><div class="kv" style="font-size:17px;">${fmt(totalROI)}</div></div>
+    <div class="kcard"><div class="kl">Savings pool (65%)</div><div class="kv" style="color:var(--teal);font-size:17px;">${fmt(totalROI*0.65)}</div></div>
+    <div class="kcard"><div class="kl">Each partner (5%)</div><div class="kv" style="font-size:17px;">${fmt(totalROI*0.05)}</div></div>
+    <div class="kcard"><div class="kl">Maintenance (10%)</div><div class="kv" style="font-size:17px;">${fmt(totalROI*0.10)}</div></div>`;
+
+  if(splitChart) splitChart.destroy();
+  splitChart=new Chart(document.getElementById('splitChart'),{
+    type:'doughnut',
+    data:{labels:partners.map(p=>`${p.name} ${(p.pct*100).toFixed(0)}%`),
+      datasets:[{data:partners.map(p=>Math.round(totalROI*p.pct)),
+        backgroundColor:["#2E6DA4","#1D9E75","#534AB7","#C87A17","#1D7A4E","#D85A30","#888780"],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}}}
+  });
+
+  document.getElementById('splitBody').innerHTML=partners.map(p=>`
+    <tr><td class="tl">${p.name}</td><td style="text-align:center;">${(p.pct*100).toFixed(0)}%</td><td>${fmt(Math.round(totalROI*p.pct))}</td></tr>`).join('');
+
+  // EXPENSES
+  const totalExp=expenses.reduce((a,e)=>a+(e.amount||0),0);
+  document.getElementById('exp-kpis').innerHTML=`
+    <div class="kcard"><div class="kl">Total expenses</div><div class="kv" style="font-size:17px;">${fmt(totalExp)}</div></div>
+    <div class="kcard"><div class="kl">Expense items</div><div class="kv">${expenses.length}</div></div>`;
+
+  document.getElementById('expBody').innerHTML=expenses.map((e,i)=>`
+    <tr>
+      <td class="tl"><input class="ef" value="${e.rider||''}" style="width:100px;" onchange="expenses[${i}].rider=this.value;save();"/></td>
+      <td class="tl"><input class="ef" value="${e.item||''}" onchange="expenses[${i}].item=this.value;save();"/></td>
+      <td><input class="ef ef-num" type="number" value="${e.amount||0}" style="width:110px;" onchange="expenses[${i}].amount=+this.value;save();"/></td>
+      <td><input class="ef" value="${e.date||''}" style="width:90px;" onchange="expenses[${i}].date=this.value;save();"/></td>
+      <td style="text-align:center;"><span onclick="expenses[${i}].done=!expenses[${i}].done;save();" style="cursor:pointer;font-size:10px;padding:2px 8px;border-radius:5px;background:${e.done?'#D5EFE2':'#FCEBEB'};color:${e.done?'#0F6E56':'#791F1F'};">${e.done?'Done':'Pending'}</span></td>
+      <td><span onclick="expenses.splice(${i},1);save();" style="cursor:pointer;font-size:10px;color:var(--red);">Remove</span></td>
+    </tr>`).join('');
+}
+
+function showPanel(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  el.classList.add('active');
+  const titles={portfolio:'Portfolio',payments:'Payment tracker',riders:'Rider details',risk:'Risk register',docs:'Documentation',profit:'Profit split',expenses:'Expenses'};
+  document.getElementById('tt').textContent=titles[id];
+}
+
+function addRider(){document.getElementById('addModal').classList.add('open');}
+function closeModal(){document.getElementById('addModal').classList.remove('open');}
+function confirmAddRider(){
+  const id=document.getElementById('m-id').value.trim();
+  if(!id){alert('Please enter a Rider ID');return;}
+  plans.push({
+    id,name:document.getElementById('m-name').value,
+    type:document.getElementById('m-type').value,
+    cap:+document.getElementById('m-cap').value||0,
+    roi:0,total:+document.getElementById('m-total').value||0,
+    weeks:Math.round((+document.getElementById('m-months').value||0)*4.33),
+    months:+document.getElementById('m-months').value||0,
+    weekly:+document.getElementById('m-weekly').value||0,
+    dep:+document.getElementById('m-dep').value||0,
+    collected:0,wkPaid:0,
+    risk:document.getElementById('m-risk').value,
+    riskFactors:'New rider',mit:'Weekly monitoring',review:'',status:'Under Monitoring',
+    signed:false,nin:false,gid:false,reg:false,ins:false,aff:false,
+    regExp:'',insExp:'',auth:'FRSC/VIO',startDate:'',endDate:'',note:''
+  });
+  save(); closeModal(); showToast('Rider added!');
+}
+
+function addExpense(){
+  expenses.push({rider:'',item:'',amount:0,date:'',done:false});
+  save();
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-expenses').classList.add('active');
+  document.querySelector('[onclick*="expenses"]').classList.add('active');
+}
+
+function exportCSV(){
+  let csv='Rider ID,Name,Type,Capital,Weekly,Months,Total,Collected,Outstanding,Weeks Paid,Risk,Status,Deposit,Note\n';
+  plans.forEach(p=>{
+    csv+=`"${p.id}","${p.name}","${p.type}",${p.cap},${p.weekly},${p.months},${p.total},${p.collected},${Math.max(0,p.total-p.collected)},${p.wkPaid},"${p.risk}","${p.status}",${p.dep},"${p.note}"\n`;
+  });
+  csv+='\n\nExpenses\nRider,Item,Amount,Date,Done\n';
+  expenses.forEach(e=>{csv+=`"${e.rider}","${e.item}",${e.amount},"${e.date}","${e.done}"\n`;});
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='oride_data_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  showToast('CSV exported!');
+}
+
+render();
+</script>
+</body>
+</html>
